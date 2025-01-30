@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - GLTFloader</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+        <script type="importmap">
+            {
+              "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.172.0/examples/jsm/"
+              }
+            }
+          </script>
+	</head>
+
+	<body>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+			import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+
+			let camera, scene, renderer, mixer, clock;
+
+			init();
+
+			function init() {
+
+                mixer = new THREE.AnimationMixer();
+                clock = new THREE.Clock();
+
+				const container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.25, 20 );
+				camera.position.set( 0, 0, 0.3 );
+
+				scene = new THREE.Scene();
+                scene.background = new THREE.Color( 0xffffff );
+
+                const light = new THREE.AmbientLight( 0x909090 );
+                scene.add( light );
+
+                const loader = new GLTFLoader().setPath( 'dest/' );
+                loader.load('fragment-1.gltf', async function ( gltf ) {
+
+                    const model = gltf.scene;
+
+                    // wait until the model can be added to the scene without blocking due to shader compilation
+
+                    await renderer.compileAsync( model, camera, scene );
+                    console.log( gltf.animations[0] );
+                    let clip = mixer.clipAction(gltf.animations[0], model);
+                    console.log(clip);
+                    clip.play();
+ 
+                    scene.add( model );
+
+                    render();
+                } );
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.toneMapping = THREE.ACESFilmicToneMapping;
+				renderer.toneMappingExposure = 1;
+				container.appendChild( renderer.domElement );
+
+				const controls = new OrbitControls( camera, renderer.domElement );
+	            controls.minDistance = 0.1;
+				controls.maxDistance = 1;
+				controls.target.set( 0, 0, - 0.2 );
+				controls.update();
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				render();
+
+			}
+
+            function render() {
+                requestAnimationFrame(render);
+                mixer.update(clock.getDelta());
+				renderer.render( scene, camera );
+			}
+
+		</script>
+
+	</body>
+</html>
