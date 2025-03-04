@@ -1,0 +1,11 @@
+{
+  "name": "the-fractionalized-phallus",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "author": "Rhea Myers",
+  "dependencies": {
+    "puppeteer": "^24.3.0",
+    "puppeteer-screen-recorder": "^3.0.6"
+  }
+}

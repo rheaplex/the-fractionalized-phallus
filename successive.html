@@ -1,0 +1,113 @@
+<!Doctype html>
+<html lang="en">
+  <head>
+	<title>The Fractionalized Phallus</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+  </head>
+<body>
+  <script type="importmap">
+      {
+    "imports": {
+      "three": "./js/three.module.js"
+    }
+  }
+</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from './js/loaders/GLTFLoader.js';
+	import { RoomEnvironment } from './js/RoomEnvironment.js';
+    import CameraControls from './js/camera-controls.module.min.js';
+
+    CameraControls.install({ THREE: THREE });
+
+    const NUM_FRAGMENTS = 30;
+    const SHOW_EACH_FOR = 20000;
+    const ROTATION_TIME = 20000;
+    const ROTATION_SCALE = (Math.PI * 2) / ROTATION_TIME;
+    const LOAD_STRIDE = 10;
+    
+    let current_model = 0;
+    const fragments = Array(30);
+    const loader = new GLTFLoader().setPath('gltf/');
+    const loadAsync = url => {
+      return new Promise(resolve => {
+        loader.load(url, gltf => {
+          resolve(gltf)
+        })
+      })
+    };
+    // Do it slow because otherwise some textures fail to load.
+    for (let i = 0; i < NUM_FRAGMENTS; i += LOAD_STRIDE) {
+      const loads = Array(LOAD_STRIDE)
+            .fill()
+            .map((_, m) => loadAsync(`fragment-${i + m + 1}.gltf`));
+      const loaded = await Promise.all(loads);
+      loaded.forEach((gltf, n) => fragments[i + n] = gltf.scene.children[0]);
+    }
+
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.001,
+      1000
+    );
+    const cameraControls = new CameraControls(camera);
+    cameraControls.enabled = false;
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.gammaFactor = 2.2;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const environment = new RoomEnvironment();
+	const pmremGenerator = new THREE.PMREMGenerator(renderer);
+	scene.background = new THREE.Color(0xffffffff);
+	scene.environment = pmremGenerator.fromScene(environment).texture;
+
+    const light = new THREE.AmbientLight(0xFFFFFF);
+    scene.add(light);
+    const mainLight = new THREE.PointLight(0xffffff, 500.0, 28, 2);
+    mainLight.position.set(0.418, 16.199, 1.0);
+    scene.add(mainLight);
+
+    let container = new THREE.Group();
+    // Orient the models for portrait format.
+    container.rotation.z = Math.PI / 2.0;
+    container.add(fragments[0]);
+    scene.add(container);
+    cameraControls.fitToBox(fragments[0], false);
+
+    const clock = new THREE.Clock();
+    
+    function animate(when) {
+      const delta = clock.getDelta();
+	  cameraControls.update(delta);
+      container.rotation.x = - (when % ROTATION_TIME) * ROTATION_SCALE;
+	  renderer.render(scene, camera);
+    }    
+    renderer.setAnimationLoop(animate);
+    
+    function nextFragment () {
+      const previous_model = current_model;
+      current_model = (current_model + 1) % NUM_FRAGMENTS;
+      container.add(fragments[current_model]);
+      renderer.compile(fragments[current_model], camera);
+      container.remove(fragments[previous_model]);
+      const boundingBox = new THREE.Box3()
+            .setFromObject(fragments[current_model]);
+      cameraControls.fitToBox(boundingBox, false);
+    }
+    setInterval(nextFragment, SHOW_EACH_FOR);
+    
+    function onWindowResize() {
+	  camera.aspect = window.innerWidth / window.innerHeight;
+	  camera.updateProjectionMatrix();
+	  renderer.setSize(window.innerWidth, window.innerHeight);
+	}
+    window.addEventListener('resize', onWindowResize);
+  </script>
+</body>

@@ -12,13 +12,19 @@ F3D_ARGS = --no-background=true \
 		--resolution=$(WIDTH),$(HEIGHT) \
 		--command-script=f3d-commands.txt
 
-GLTFS = $(wildcard $(MODEL_DIR)/*.glb)
-PNGS = $(patsubst $(MODEL_DIR)/%.glb, $(IMG_DIR)/%.png, $(GLTFS))
+GLBS = $(wildcard $(MODEL_DIR)/*.glb)
+GLTFS = $(patsubst $(MODEL_DIR)/%.glb, $(MODEL_DIR)/%.gltf, $(GLBS))
+PNGS = $(patsubst $(MODEL_DIR)/%.glb, $(IMG_DIR)/%.png, $(GLBS))
 
-all: gltfs pngs
+all: glbs gltfs pngs
 
-gltfs: process.py
+glbs: process.py
 	python3 process.py
+
+$(MODEL_DIR)/%.gltf: $(MODEL_DIR)/%.glb
+	gltf-import-export $<
+
+gltfs: $(GLTFS) 
 
 $(IMG_DIR)/%.png: $(MODEL_DIR)/%.glb
 	$(F3D) $(F3D_ARGS) --output $@ --input $<

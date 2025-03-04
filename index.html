@@ -8,8 +8,10 @@
   </head>
 <body>
 
-<model-viewer id="fragment" autoplay ar ar-modes="webxr scene-viewer quick-look"
-              tone-mapping="neutral"shadow-intensity="1">
+<model-viewer id="fragment" ar ar-modes="webxr scene-viewer quick-look"
+              tone-mapping="neutral" shadow-intensity="0"
+              loading="eager" orientation="0 0 0"
+              width="1920" height="1080">
     <div class="progress-bar hide" slot="progress-bar">
         <div class="update-bar"></div>
     </div>
@@ -17,23 +19,44 @@
 
   <script type="module" src="js/model-viewer.min.js"></script>
   <script>
+    const rotSpeed = 60000.0;
+    const rotFrac = (Math.PI * 2) / rotSpeed;
+
+    function calcRot(at) {
+      return (at % rotSpeed) * rotFrac;
+    }
+
     window.addEventListener('load', function() {
       const edition = parseInt(new URLSearchParams(window.location.search)
                    .get('fragment')) || 1;
-      const rotate = parseInt(new URLSearchParams(window.location.search)
+      let rotate = parseInt(new URLSearchParams(window.location.search)
                    .get('rotate')) ? true : false;
       const interactive = parseInt(new URLSearchParams(window.location.search)
                                    .get('interactive')) ? true : false;
+      const horizontal = parseInt(new URLSearchParams(window.location.search)
+                                  .get('horizontal')) ? true : false;
       const fragment = document.getElementById("fragment");
       fragment.setAttribute("src", `gltf/fragment-${edition}.glb`);
       document.title = `The Fractionalized Phallus - Fragment ${edition}`;
       if (interactive) {
         fragment.setAttribute("camera-controls", true);
         fragment.setAttribute("ar", true);
+      } else if (horizontal) {
+        fragment.orientation = "90deg 0 0";
+        fragment.updateFraming();
+        if (rotate) {
+          (function spin(timestamp) {
+            const rot = calcRot(timestamp);
+            fragment.orientation = `90deg ${rot}rad 0`;
+            requestAnimationFrame(spin);
+          })();
+        }
       } else if (rotate) {
         fragment.setAttribute("auto-rotate", true);
+        fragment.setAttribute("auto-rotate-delay", "0");
       }
     });
+
 
   </script>
 </body>
