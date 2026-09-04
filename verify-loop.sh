@@ -14,14 +14,20 @@
 # 360 and confirms it reproduces frame 0 -- the seam itself -- calibrated against
 # the raytracer's own noise floor, since OSPRay is not bit-deterministic.
 #
-# Usage: ./verify-loop.sh <framedir> <fragment> <width> <height>
+# Pass EXPECTED (the frame count the render was launched with). Without it this
+# script can only infer the count from the directory, and an in-progress render
+# looks exactly like a complete short one -- it will then check every frame
+# against an angle it was never meant to hold and report a false failure.
+#
+# Usage: ./verify-loop.sh <framedir> <fragment> <width> <height> [expected]
 
 set -euo pipefail
 
-FRAMEDIR=${1:?usage: ./verify-loop.sh <framedir> <fragment> <width> <height>}
+FRAMEDIR=${1:?usage: ./verify-loop.sh <framedir> <fragment> <width> <height> [expected]}
 FRAGMENT=${2:-24}
 WIDTH=${3:-270}
 HEIGHT=${4:-480}
+EXPECTED=${5:-}
 
 # f3d location: override with F3D=/path/to/f3d, else PATH, else the macOS app bundle.
 if [ -n "${F3D:-}" ]; then
@@ -36,6 +42,28 @@ INPUT=gltf/fragment-${FRAGMENT}.glb
 
 frames=$(ls "$FRAMEDIR"/frame-*.png 2>/dev/null | wc -l | tr -d ' ')
 [ "$frames" -gt 2 ] || { echo "need more than 2 frames in $FRAMEDIR" >&2; exit 1; }
+
+# Frame indices must run 0..frames-1 with no gaps.
+highest=$(ls "$FRAMEDIR"/frame-*.png | sed 's/.*frame-0*\([0-9]*\)\.png/\1/' | sort -n | tail -1)
+highest=$((10#${highest:-0}))
+if [ "$highest" -ne "$((frames - 1))" ]; then
+  echo "ABORT: $frames frames present but highest index is $highest -- gaps in the sequence." >&2
+  exit 1
+fi
+
+if [ -n "$EXPECTED" ]; then
+  if [ "$frames" -ne "$EXPECTED" ]; then
+    echo "ABORT: expected $EXPECTED frames, found $frames." >&2
+    echo "  The render is probably still running, or stopped early." >&2
+    echo "  Re-run render-loop.sh (it resumes) and verify once it reports done." >&2
+    exit 1
+  fi
+else
+  echo "WARNING: no expected frame count given -- inferring $frames from the directory."
+  echo "         If the render is still running this WILL report a false failure."
+  echo "         Pass the launch frame count as the 5th argument to be sure."
+  echo
+fi
 
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 
