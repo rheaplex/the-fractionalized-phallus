@@ -1,3 +1,10 @@
 .DS_Store
 source/
 node_modules/
+
+# Rendered loop frames and video output (large, reproducible from the scripts)
+png/loop-*/
+bench-out/
+mp4/
+*.mp4
+*.mov
