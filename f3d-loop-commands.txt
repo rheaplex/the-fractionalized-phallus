@@ -1,0 +1,14 @@
+
+set render.effect.anti_aliasing true
+set render.effect.tone_mapping true
+
+set render.grid.enable false
+
+set render.raytracing.denoise true
+set render.raytracing.enable true
+set render.raytracing.samples 8
+
+set ui.axis false
+set ui.filename false
+set ui.fps false
+set ui.metadata false
