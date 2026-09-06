@@ -46,7 +46,8 @@ for res in "2160,3840" "4320,7680"; do
 
   # Bash builtin `time`; its report goes to the stderr of the compound command.
   timing=$( { time "$F3D" --no-background=true --resolution="$res" \
-                --command-script="$COMMANDS" --camera-azimuth-angle=42 \
+                --command-script="$COMMANDS" --camera-orthographic=true \
+                --camera-azimuth-angle=42 \
                 --output "$OUT/bench-${w}.png" --input "$INPUT" \
                 >/dev/null 2>/dev/null; } 2>&1 )
 
@@ -54,7 +55,8 @@ for res in "2160,3840" "4320,7680"; do
     printf "\r%-79s\r" " "
     printf "  %-12s FAILED -- f3d produced no output\n" "${w}x${h}"
     "$F3D" --no-background=true --resolution="$res" --command-script="$COMMANDS" \
-           --camera-azimuth-angle=42 --output "$OUT/bench-${w}.png" --input "$INPUT" 2>&1 | tail -5
+           --camera-orthographic=true --camera-azimuth-angle=42 \
+           --output "$OUT/bench-${w}.png" --input "$INPUT" 2>&1 | tail -5
     continue
   fi
 

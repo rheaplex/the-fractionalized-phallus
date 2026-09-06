@@ -69,7 +69,8 @@ work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 
 render() { # angle outfile
   "$F3D" --no-background=true --resolution="${WIDTH},${HEIGHT}" \
-         --command-script="$COMMANDS" --camera-azimuth-angle="$1" \
+         --command-script="$COMMANDS" --camera-orthographic=true \
+         --camera-azimuth-angle="$1" \
          --output "$2" --input "$INPUT" >/dev/null 2>&1
 }
 raw() { ffmpeg -v error -y -i "$1" -pix_fmt rgba -f rawvideo "$2"; }

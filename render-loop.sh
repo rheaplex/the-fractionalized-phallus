@@ -6,6 +6,14 @@
 # no dropped frames, and frame 0 is the exact continuation of frame FRAMES-1.
 # Angle 360 is deliberately never rendered -- it is frame 0.
 #
+# The camera is orthographic. This form sits off the rotation axis, so under a
+# perspective camera it swings toward and away from the lens once per
+# revolution and the loop visibly pulses -- measured at 7.2% variation in
+# rendered height, versus 0.3% orthographic. Narrowing the view angle does not
+# help: f3d's auto-framing scales the camera distance to match, holding the
+# depth-to-distance ratio constant. verify-loop.sh must use the same projection
+# or its reference frames will not match.
+#
 # Resumable: completed frames are skipped, and each frame is written to a temp
 # file and moved into place only once f3d succeeds, so an interrupted run never
 # leaves a half-written PNG to be mistaken for a finished one.
@@ -65,6 +73,7 @@ for ((i = 0; i < FRAMES; i++)); do
   "$F3D" --no-background=true \
          --resolution="${WIDTH},${HEIGHT}" \
          --command-script="$COMMANDS" \
+         --camera-orthographic=true \
          --camera-azimuth-angle="$angle" \
          --output "$tmp" \
          --input "$INPUT" >/dev/null 2>&1
@@ -73,7 +82,8 @@ for ((i = 0; i < FRAMES; i++)); do
     echo >&2
     echo "frame $i failed (angle $angle) -- rerunning to show the error:" >&2
     "$F3D" --no-background=true --resolution="${WIDTH},${HEIGHT}" \
-           --command-script="$COMMANDS" --camera-azimuth-angle="$angle" \
+           --command-script="$COMMANDS" --camera-orthographic=true \
+           --camera-azimuth-angle="$angle" \
            --output "$tmp" --input "$INPUT" 2>&1 | tail -10 >&2
     rm -f "$tmp"
     exit 1
