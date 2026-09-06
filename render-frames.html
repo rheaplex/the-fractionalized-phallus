@@ -1,0 +1,112 @@
+<!Doctype html>
+<html lang="en">
+  <head>
+	<title>The Fractionalized Phallus - frame renderer</title>
+	<meta charset="utf-8">
+  </head>
+<body>
+<!--
+  Offscreen frame renderer for the museum loop.
+
+  index.html spins the model from the wall clock via requestAnimationFrame,
+  which is why the screen-recorded MP4s could never loop: frames landed at
+  whatever angle the compositor happened to fire at. Here the angle is set
+  explicitly per frame by the driver (render-frames.js), so the sequence is
+  deterministic and frame N is exactly N/FRAMES of a turn.
+
+  The page renders nothing on its own. The driver calls:
+    await window.frameRenderer.ready()          -- model loaded and framed
+    await window.frameRenderer.setAngle(i, n)   -- pose for frame i of n
+    await window.frameRenderer.capture()        -- returns a PNG data URL
+-->
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  model-viewer { display: block; background-color: transparent; --poster-color: transparent; }
+</style>
+
+<model-viewer id="fragment"
+              tone-mapping="neutral" shadow-intensity="0"
+              loading="eager" orientation="0 0 0"
+              disable-zoom interaction-prompt="none">
+</model-viewer>
+
+<script type="module" src="js/model-viewer.min.js"></script>
+<script type="module">
+  const params = new URLSearchParams(window.location.search);
+  const edition    = parseInt(params.get('fragment')) || 24;
+  const width      = parseInt(params.get('width'))  || 1080;
+  const height     = parseInt(params.get('height')) || 1920;
+  // "orientation" spins the model itself (index.html's horizontal path).
+  // "orbit" moves the camera around it instead.
+  const spin       = params.get('spin') || 'orientation';
+  // Extra roll applied before spinning, matching index.html's horizontal mode.
+  const baseRoll   = params.get('roll') !== null ? params.get('roll') : '90deg';
+  // model-viewer has no orthographic camera. A narrow field of view with a
+  // correspondingly larger radius approaches one: the form sits off the orbit
+  // centre, so under a wide lens it magnifies as it swings toward the camera
+  // and the loop pulses. Measured height variation over a full turn:
+  // 30deg -> 14%, and it falls roughly in proportion to the fov.
+  const fov        = params.get('fov');
+
+  const fragment = document.getElementById('fragment');
+  fragment.style.width  = width + 'px';
+  fragment.style.height = height + 'px';
+  fragment.setAttribute('src', `gltf/fragment-${edition}.glb`);
+
+  const loaded = new Promise(resolve => {
+    fragment.addEventListener('load', () => resolve(), { once: true });
+  });
+
+  // Two rAFs guarantee model-viewer has drawn with the pose we just set.
+  const drawn = () => new Promise(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+  let framedRadius = null;
+
+  window.frameRenderer = {
+    async ready() {
+      await loaded;
+      // Frame once, up front, against a pose-independent view. Re-framing per
+      // frame would rescale the model as its silhouette changes and reintroduce
+      // the pulsing we are trying to remove.
+      if (spin === 'orientation') fragment.orientation = `${baseRoll} 0 0`;
+      if (fov) {
+        // Widen the clamps first, or setting a narrow fov silently does nothing.
+        fragment.setAttribute('min-field-of-view', '0.01deg');
+        fragment.setAttribute('max-field-of-view', '180deg');
+        fragment.fieldOfView = `${fov}deg`;
+      }
+      fragment.updateFraming();
+      await drawn();
+      const orbit = fragment.getCameraOrbit();
+      framedRadius = orbit.radius;
+      return {
+        width, height, spin, baseRoll,
+        fov: fragment.getFieldOfView(),
+        canvas: [fragment.shadowRoot.querySelector('canvas').width,
+                 fragment.shadowRoot.querySelector('canvas').height],
+        radius: framedRadius,
+      };
+    },
+
+    async setAngle(i, n) {
+      const turns = i / n;                 // [0,1): angle n is never rendered,
+      const rad   = turns * 2 * Math.PI;   // because it is frame 0.
+      if (spin === 'orbit') {
+        const theta = turns * 360;
+        fragment.cameraOrbit = `${theta}deg 90deg ${framedRadius}m`;
+        fragment.jumpCameraToGoal();
+      } else {
+        fragment.orientation = `${baseRoll} ${rad}rad 0`;
+      }
+      await drawn();
+      return rad;
+    },
+
+    async capture() {
+      return fragment.toDataURL('image/png');
+    },
+  };
+</script>
+</body>
+</html>
